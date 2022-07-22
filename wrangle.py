@@ -15,6 +15,17 @@ warnings.filterwarnings("ignore")
 def get_connection(db, user=env.user, host=env.host, password=env.password):
     return f'mysql+pymysql://{user}:{password}@{host}/{db}'
 
+def train_validate_test_split(df, seed=123):
+    train_and_validate, test = train_test_split(
+        df, test_size=0.2, random_state=seed
+    )
+    train, validate = train_test_split(
+        train_and_validate,
+        test_size=0.3,
+        random_state=seed,
+    )
+    return train, validate, test
+
 def get_wrangle_zillow():
     # Get local cached file if it's there
     #filename = "zillow.csv" 
@@ -93,37 +104,26 @@ def wrangle_zillow():
 
    return df
 
-def scale_data(train, validate, test, return_scaler=False):
-  
-    columns_to_scale = ['bedrooms', 'bathrooms', 'tax_value', 'taxamount', 'area']
+
+def scale_data(train, validate, test, features_to_scale):
     
-    train_scaled = train.copy()
-    validate_scaled = validate.copy()
-    test_scaled = test.copy()
-    
+    # Fit the scaler to train data only
     scaler = MinMaxScaler()
-    scaler.fit(train[columns_to_scale])
+    scaler.fit(train[features_to_scale])
     
-    train_scaled[columns_to_scale] = scaler.transform(train[columns_to_scale])
-    validate_scaled[columns_to_scale] = scaler.transform(validate[columns_to_scale])
-    test_scaled[columns_to_scale] = scaler.transform(test[columns_to_scale])
+    # Generate a list of the new column names with _scaled added on
+    scaled_columns = [col+'_scaled' for col in features_to_scale]
     
-    if return_scaler:
-        return scaler, train_scaled, validate_scaled, test_scaled
-    else:
-        return train_scaled, validate_scaled, test_scaled
+    # Transform the separate datasets using the scaler learned from train
+    scaled_train = scaler.transform(train[features_to_scale])
+    scaled_validate = scaler.transform(validate[features_to_scale])
+    scaled_test = scaler.transform(test[features_to_scale])
+    
+    # Concatenate the scaled data to the original unscaled data
+    train_scaled = pd.concat([train, pd.DataFrame(scaled_train,index=train.index, columns = scaled_columns)],axis=1)
+    validate_scaled = pd.concat([validate, pd.DataFrame(scaled_validate,index=validate.index, columns = scaled_columns)],axis=1)
+    test_scaled = pd.concat([test, pd.DataFrame(scaled_test,index=test.index, columns = scaled_columns)],axis=1)
+
+    return train_scaled, validate_scaled, test_scaled
 
 
-def plot_categorical_and_continuous_vars(df, categorical_vars, continuous_vars):
-    for count in continuous_vars:
-        for cat in categorical_vars:
-            _, ax = plt.subplots(1,3,figsize=(20,8))
-            print(f'Plots {count} x {cat}')
-            p = sns.stripplot(data = df, x=cat, y=count, ax=ax[0], s=1)
-            p.axhline(df[count].mean())
-            p = sns.boxplot(data = df, x=cat, y = count, ax=ax[1])
-            p.axhline(df[count].mean())
-            p = sns.violinplot(data = df, x=cat, y=count, hue = cat, ax=ax[2])
-            p.axhline(df[count].mean())
-            plt.suptitle(f'{count} by {cat}', fontsize = 18)
-            plt.show()
