@@ -37,7 +37,7 @@ def get_wrangle_zillow():
         df = pd.read_sql(
         ''' 
         SELECT
-        bedroomcnt, bathroomcnt, calculatedfinishedsquarefeet, taxvaluedollarcnt, yearbuilt, taxamount, fips
+        bedroomcnt, bathroomcnt, calculatedfinishedsquarefeet, taxvaluedollarcnt, fips, yearbuilt
         FROM 
         properties_2017
         JOIN
@@ -47,7 +47,8 @@ def get_wrangle_zillow():
         WHERE
         propertylandusedesc = "Single Family Residential"
         AND
-        transactiondate like "2017-__-__";
+        transactiondate like "2017-__-__"
+        ;
 
         '''
         
@@ -55,14 +56,16 @@ def get_wrangle_zillow():
         )
 
 
-        # Return the dataframe to the calling code
+        # Return the dataframe 
         return df  
 
 def handle_nulls(df):
       
-      df = df.dropna() #dropping all the na values
 
-      return df
+    df = df.dropna() #dropping all the na values
+
+         # Return the dataframe 
+    return df
 
 
 
@@ -82,6 +85,13 @@ def type_change(df):
 
 def handle_outliers(df):
     
+    cols = ['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet', 'taxvaluedollarcnt', 'yearbuilt']
+    Q1 = df[cols].quantile(0.25)
+    Q3 = df[cols].quantile(0.75)
+    IQR = Q3 - Q1
+
+    df = df[~((df[cols] < (Q1 - 1.5 * IQR)) |(df[cols] > (Q3 + 1.5 * IQR))).any(axis=1)]
+    
     df = df[df.bathroomcnt <= 6]
     
     df = df[df.bedroomcnt <= 6]
@@ -89,6 +99,10 @@ def handle_outliers(df):
     df = df[df.taxvaluedollarcnt < 2_000_000]
 
     return df
+
+def change_fips(df):
+    df['fips'] = df['fips'].replace({6037: 'la_county', 6059: 'orange_county', 6111: 'ventura_county'})
+
 
 def wrangle_zillow():
 
@@ -99,6 +113,8 @@ def wrangle_zillow():
    df = type_change(df)
 
    df = handle_outliers(df)
+
+   df = change_fips(df)
 
    df.to_csv('zillow.csv', index=False)
 

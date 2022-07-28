@@ -21,3 +21,23 @@ def plot_categorical_and_continuous_vars(df, categorical_vars, continuous_vars):
             p.axhline(df[count].mean())
             plt.suptitle(f'{count} by {cat}', fontsize = 18)
             plt.show()
+
+def graph_features(df):
+    # figure size
+    plt.rcParams["figure.figsize"] = (16, 5)
+    # pick the columns to plot
+    cols = ["bedroomcnt", "bathroomcnt", "calculatedfinishedsquarefeet", "yearbuilt"]
+    # plt.subplot(row X col, where?)
+    fig, axes = plt.subplots(1, 4, sharey=True)
+    # run throught the columns and plot the distribution
+    for i, col in enumerate(cols):
+        # Title with column name.
+        axes[i].set_title(col)
+        # Display lmplot for column.
+        sns.regplot(
+            data=df,
+            x=col,
+            y="taxvaluedollarcnt",
+            line_kws={"color": "green"},
+            ax=axes[i],
+        )
